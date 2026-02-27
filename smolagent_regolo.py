@@ -1,12 +1,14 @@
 """
-Smolagent con Ollama come motore LLM.
+Smolagent con Regolo.ai come motore LLM (modello gpt-oss-120b).
+
+Regolo.ai espone un endpoint compatibile con le API OpenAI, quindi
+possiamo usare OpenAIServerModel di smolagents puntando all'URL di Regolo.
 
 Prerequisiti:
-  1. Avvia Ollama (locale o via Docker):
-     - Locale: assicurati che 'ollama serve' sia in esecuzione
-     - Docker: docker compose up -d
-  2. Scarica un modello: ollama pull qwen2.5-coder:7b
-  3. Installa le dipendenze: pip install smolagents[gradio] openai pytz duckduckgo-search pyyaml
+  1. Ottieni una API key da https://regolo.ai
+  2. Imposta la variabile d'ambiente REGOLO_API_KEY oppure modifica il valore qui sotto
+  3. Installa le dipendenze:
+     pip install smolagents[openai,gradio] pytz duckduckgo-search pyyaml
 """
 
 from smolagents import (
@@ -21,7 +23,6 @@ import datetime
 import pytz
 import yaml
 import os
-
 
 
 # ── Tool personalizzati ──────────────────────────────────────────────
@@ -50,20 +51,26 @@ def get_current_time_in_timezone(timezone: str) -> str:
         return f"Error fetching time for timezone '{timezone}': {str(e)}"
 
 
-# ── Configurazione Ollama ────────────────────────────────────────────
+# ── Configurazione Regolo.ai ─────────────────────────────────────────
 
-# URL di Ollama: se hai avviato via Docker usa la porta 11434 (default)
-# Se Ollama gira in locale, l'URL è lo stesso.
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+# Endpoint API di Regolo.ai (compatibile OpenAI)
+REGOLO_BASE_URL = os.getenv("REGOLO_BASE_URL", "https://api.regolo.ai/v1")
 
-# Modello da usare (deve essere già scaricato con 'ollama pull <modello>')
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+# API key di Regolo.ai – impostala come variabile d'ambiente per sicurezza
+REGOLO_API_KEY = os.getenv("REGOLO_API_KEY", "sk-uWfE3eom07Bae4MXr2IPiw")
 
-# Ollama espone un endpoint compatibile con OpenAI, quindi usiamo OpenAIServerModel
+# Modello da utilizzare
+REGOLO_MODEL = os.getenv("REGOLO_MODEL", "gpt-oss-120b")
+
+if REGOLO_API_KEY == "YOUR_REGOLO_API_KEY":
+    print("⚠️  ATTENZIONE: imposta la variabile d'ambiente REGOLO_API_KEY con la tua chiave API di Regolo.ai")
+    print("   Esempio: set REGOLO_API_KEY=sk-xxxxxxxx  (PowerShell: $env:REGOLO_API_KEY='sk-xxxxxxxx')")
+
+# Regolo.ai è compatibile con le API OpenAI → usiamo OpenAIServerModel
 model = OpenAIServerModel(
-    model_id=OLLAMA_MODEL,
-    api_base=OLLAMA_BASE_URL,
-    api_key="ollama",  # Ollama non richiede una vera API key
+    model_id=REGOLO_MODEL,
+    api_base=REGOLO_BASE_URL,
+    api_key=REGOLO_API_KEY,
 )
 
 
@@ -81,6 +88,7 @@ with open(prompt_file, "r", encoding="utf-8") as stream:
 
 
 # ── Crea l'agente ────────────────────────────────────────────────────
+
 agent = CodeAgent(
     model=model,
     tools=[
@@ -88,16 +96,15 @@ agent = CodeAgent(
         my_custom_tool,
         get_current_time_in_timezone,
         search_tool,
-    ],  # add your tools here (don't remove final_answer)
+    ],
     max_steps=6,
     verbosity_level=1,
-    prompt_templates=prompt_templates  # Pass system prompt to CodeAgent
+    prompt_templates=prompt_templates,
 )
-
-
 
 
 # ── Avvia interfaccia Gradio ─────────────────────────────────────────
 
 if __name__ == "__main__":
     GradioUI(agent).launch()
+

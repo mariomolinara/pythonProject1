@@ -7,13 +7,13 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     # Per GPU NVIDIA, decommentare le righe seguenti:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+    deploy:
+       resources:
+         reservations:
+           devices:
+             - driver: nvidia
+               count: all
+               capabilities: [gpu]
     restart: unless-stopped
 
 volumes:

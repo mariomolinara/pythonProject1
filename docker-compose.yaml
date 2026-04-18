@@ -1,20 +1,83 @@
-services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    # Per GPU NVIDIA, decommentare le righe seguenti:
-    deploy:
-       resources:
-         reservations:
-           devices:
-             - driver: nvidia
-               count: all
-               capabilities: [gpu]
-    restart: unless-stopped
+# ============================================================================
+# Docker Compose per Ollama
+# ============================================================================
+# Docker Compose permette di definire e avviare applicazioni multi-container.
+# Questo file definisce due servizi:
+#   1. ollama       → il server che esegue il modello IA
+#   2. ollama-pull  → un container temporaneo che scarica il modello automaticamente
+#
+# Comandi utili:
+#   docker compose up -d       → avvia tutto in background
+#   docker compose down        → ferma e rimuove i container
+#   docker compose logs -f     → mostra i log in tempo reale
+#   docker compose ps          → mostra lo stato dei container
+# ============================================================================
 
+services:
+
+  # --------------------------------------------------------------------------
+  # Servizio principale: Ollama
+  # Ollama è un server che carica ed esegue modelli IA (LLM) in locale.
+  # Espone un'API REST compatibile con OpenAI sulla porta 11434.
+  # --------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest          # Immagine Docker ufficiale di Ollama
+    container_name: ollama               # Nome fisso del container (per comodità)
+    ports:
+      - "11434:11434"                    # Mappa la porta 11434 del container → porta 11434 del PC
+                                         # Così lo script Python può raggiungere Ollama su localhost:11434
+    volumes:
+      - ollama_data:/root/.ollama        # Volume persistente: i modelli scaricati sopravvivono
+                                         # al riavvio del container (non li riscarica ogni volta)
+
+    # --- Supporto GPU NVIDIA (opzionale) ---
+    # Se avete una GPU NVIDIA e volete usarla per accelerare l'inferenza,
+    # decommentate le righe seguenti. ATTENZIONE: servono prerequisiti!
+    # Vedi la sezione "Usare la GPU" nel README.md
+    # deploy:
+    #    resources:
+    #      reservations:
+    #        devices:
+    #          - driver: nvidia           # Usa il driver NVIDIA
+    #            count: all               # Usa tutte le GPU disponibili
+    #            capabilities: [gpu]      # Richiedi capacità GPU
+
+    restart: unless-stopped              # Riavvia automaticamente il container se si ferma
+                                         # (tranne se lo fermate voi con docker compose down)
+
+    # --- Healthcheck ---
+    # Docker controlla periodicamente se Ollama è pronto.
+    # Il servizio ollama-pull partirà SOLO quando questo check ha successo.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]    # Esegue "ollama list" dentro il container
+      interval: 5s                       # Controlla ogni 5 secondi
+      timeout: 5s                        # Se non risponde entro 5s → fallito
+      retries: 15                        # Riprova fino a 15 volte prima di dichiarare "unhealthy"
+      start_period: 10s                  # Aspetta 10s prima di iniziare i controlli
+
+  # --------------------------------------------------------------------------
+  # Servizio temporaneo: scarica il modello automaticamente
+  # Questo container parte DOPO che Ollama è pronto (grazie a depends_on + healthcheck),
+  # scarica il modello qwen2.5-coder:7b usando l'API REST di Ollama, poi si ferma.
+  # Al prossimo "docker compose up" non riscarica nulla (il modello è nel volume).
+  # --------------------------------------------------------------------------
+  ollama-pull:
+    image: curlimages/curl:latest        # Immagine minimale con solo curl (per fare richieste HTTP)
+    depends_on:
+      ollama:
+        condition: service_healthy       # Parte SOLO quando l'healthcheck di ollama ha successo
+    entrypoint: >
+      sh -c "
+        echo '⏳ Scarico il modello qwen2.5-coder:7b...' &&
+        curl -s http://ollama:11434/api/pull -d '{\"name\":\"qwen2.5-coder:7b\"}' &&
+        echo '✅ Modello scaricato!'
+      "
+    # Spiegazione:
+    #   - "ollama" nell'URL è il nome del servizio Docker (Docker crea una rete interna
+    #     dove i container si raggiungono per nome)
+    #   - curl chiama l'API POST /api/pull di Ollama, equivalente a "ollama pull ..."
+    #   - Il download è di ~4 GB, ci vuole qualche minuto la prima volta
+
+# Volume persistente per i modelli scaricati
 volumes:
   ollama_data:

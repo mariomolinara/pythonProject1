@@ -364,6 +364,9 @@ pythonProject1/
 ├── smolagent_regolo.py      ← ⭐ Agente con Regolo.ai (cloud)
 ├── prompts.yaml             ← Istruzioni di sistema per l'agente
 ├── docker-compose.yaml      ← (Opzionale) Per avviare Ollama via Docker
+├── .env.example             ← Esempio di configurazione (da copiare in .env)
+├── .env                     ← 🔒 Le tue chiavi API (NON va su Git!)
+├── .gitignore               ← File esclusi dal controllo versione
 ├── main.py                  ← Esempio di chiamata diretta alle API
 ├── second.py                ← Esempio di agente ReAct "fatto a mano"
 └── README.md                ← Questo file!

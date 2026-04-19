@@ -6,10 +6,13 @@ possiamo usare OpenAIServerModel di smolagents puntando all'URL di Regolo.
 
 Prerequisiti:
   1. Ottieni una API key da https://regolo.ai
-  2. Imposta la variabile d'ambiente REGOLO_API_KEY oppure modifica il valore qui sotto
+  2. Copia .env.example in .env e inserisci la tua chiave
   3. Installa le dipendenze:
-     pip install smolagents[openai,gradio] pytz duckduckgo-search pyyaml
+     pip install smolagents[openai,gradio] pytz duckduckgo-search pyyaml python-dotenv
 """
+
+from dotenv import load_dotenv
+load_dotenv()  # Carica le variabili dal file .env
 
 from smolagents import (
     CodeAgent,
@@ -56,8 +59,8 @@ def get_current_time_in_timezone(timezone: str) -> str:
 # Endpoint API di Regolo.ai (compatibile OpenAI)
 REGOLO_BASE_URL = os.getenv("REGOLO_BASE_URL", "https://api.regolo.ai/v1")
 
-# API key di Regolo.ai – impostala come variabile d'ambiente per sicurezza
-REGOLO_API_KEY = os.getenv("REGOLO_API_KEY", "sk-uWfE3eom07Bae4MXr2IPiw")
+# API key di Regolo.ai – caricata dal file .env
+REGOLO_API_KEY = os.getenv("REGOLO_API_KEY", "YOUR_REGOLO_API_KEY")
 
 # Modello da utilizzare
 REGOLO_MODEL = os.getenv("REGOLO_MODEL", "gpt-oss-120b")
@@ -107,4 +110,3 @@ agent = CodeAgent(
 
 if __name__ == "__main__":
     GradioUI(agent).launch()
-
